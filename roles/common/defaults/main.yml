@@ -7,8 +7,6 @@ common_base_packages:
   - curl
   - ca-certificates
   - git
-  - htop
-  - jq
   - rsync
   - unattended-upgrades
   - apt-listchanges
