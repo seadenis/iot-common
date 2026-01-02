@@ -2,6 +2,10 @@
   ansible.builtin.timezone:
     name: "{{ common_timezone }}"
 
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: dansu
+
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
