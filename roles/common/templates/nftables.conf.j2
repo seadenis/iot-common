@@ -1,0 +1,47 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+  chain input {
+    type filter hook input priority 0;
+    policy drop;
+
+    ct state invalid drop
+    ct state established,related accept
+    iifname "lo" accept
+
+    # ICMP/ICMPv6 (полезно для диагностики)
+    ip protocol icmp accept
+    ip6 nexthdr icmpv6 accept
+
+{% if common_admin_ipv4 | length > 0 %}
+    # SSH только с админского IPv4
+    ip saddr {{ common_admin_ipv4 }} tcp dport {{ common_ssh_port }} accept
+{% else %}
+    # Failsafe: если admin IP не задан — SSH открыт (лучше так не оставлять)
+    tcp dport {{ common_ssh_port }} accept
+{% endif %}
+
+    # Web порты
+    tcp dport { {% for p in common_open_tcp_ports %}{{ p }}{% if not loop.last %}, {% endif %}{% endfor %} } accept
+  }
+
+  chain forward {
+    type filter hook forward priority 0;
+    policy drop;
+
+    ct state established,related accept
+
+    # На будущее для Docker bridge (docker0 и br-*)
+    iifname "docker0" accept
+    oifname "docker0" accept
+    iifname "br-*" accept
+    oifname "br-*" accept
+  }
+
+  chain output {
+    type filter hook output priority 0;
+    policy accept;
+  }
+}
