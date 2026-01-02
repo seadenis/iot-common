@@ -1,0 +1,5 @@
+- name: Bootstrap common baseline
+  hosts: vps
+  become: true
+  roles:
+    - common
