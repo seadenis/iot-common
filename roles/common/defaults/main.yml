@@ -1,0 +1,30 @@
+common_timezone: "Europe/Moscow"
+
+# Обновления: safe = apt upgrade, full = apt full-upgrade (aka dist-upgrade)
+common_apt_upgrade_mode: "full"
+
+common_base_packages:
+  - curl
+  - ca-certificates
+  - git
+  - htop
+  - jq
+  - rsync
+  - unattended-upgrades
+  - apt-listchanges
+  - nftables
+  - fail2ban
+
+common_enable_fail2ban: true
+common_enable_unattended_upgrades: true
+
+common_ssh_port: 22
+common_ssh_allow_password: false
+common_ssh_permit_root_login: "no"
+common_ssh_allow_users:
+  - deploy
+
+# Веб-порты заранее (под будущий nginx)
+common_open_tcp_ports:
+  - 80
+  - 443
