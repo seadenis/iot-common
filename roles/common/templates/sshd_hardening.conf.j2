@@ -1,0 +1,15 @@
+Port {{ common_ssh_port }}
+
+PermitRootLogin {{ common_ssh_permit_root_login }}
+
+PasswordAuthentication {{ 'yes' if common_ssh_allow_password else 'no' }}
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+
+X11Forwarding no
+PermitEmptyPasswords no
+
+{% if common_ssh_allow_users | length > 0 %}
+AllowUsers {% for u in common_ssh_allow_users %}{{ u }} {% endfor %}
+{% endif %}
