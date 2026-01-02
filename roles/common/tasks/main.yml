@@ -20,11 +20,17 @@
     name: "{{ common_base_packages }}"
     state: present
 
+- name: Remove provider password ssh config drop-in
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/00password.conf
+    state: absent
+  notify: Restart ssh
+
 # --- SSH hardening (через drop-in, чтобы не перетирать дефолтный sshd_config)
 - name: Deploy sshd hardening drop-in
   ansible.builtin.template:
     src: sshd_hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/90-common-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-common-hardening.conf
     owner: root
     group: root
     mode: "0644"
