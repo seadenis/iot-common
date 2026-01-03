@@ -21,3 +21,11 @@
   roles:
     - role: docker_ce
       tags: [docker_ce]
+
+- name: Deploy iot-common compose stack
+  hosts: vps
+  become: true
+  gather_facts: true
+  roles:
+    - role: iot_common_deploy
+      tags: [iot_common_deploy]
