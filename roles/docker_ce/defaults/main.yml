@@ -1,0 +1,18 @@
+---
+docker_ce_remove_conflicts: true
+
+docker_ce_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# Добавлять ли пользователей в группу docker (удобно, но это root-level доступ)
+docker_ce_manage_group: false
+docker_ce_users: ["deploy"]
+
+# (опционально) Python SDK для Ansible-модулей community.docker (если понадобится позже)
+docker_ce_install_python_sdk: false
+docker_ce_python_packages:
+  - python3-docker
