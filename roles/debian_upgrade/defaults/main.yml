@@ -1,0 +1,18 @@
+debian_upgrade_from: "bookworm"
+debian_upgrade_to: "trixie"
+
+# Время ожидания после ребута (сек)
+debian_upgrade_reboot_timeout: 1800
+
+# Сохранить бэкап /etc/apt
+debian_upgrade_backup_apt: true
+debian_upgrade_backup_path: "/root/apt-backup-before-trixie.tgz"
+
+# Dpkg поведение по конфигам: оставить текущие (без интерактива)
+debian_upgrade_dpkg_opts:
+  - "--force-confdef"
+  - "--force-confold"
+
+# Считать backports/proposed-updates нежелательными на время апгрейда
+debian_upgrade_disable_backports: true
+debian_upgrade_disable_proposed_updates: true
