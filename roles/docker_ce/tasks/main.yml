@@ -1,0 +1,96 @@
+---
+- name: Map dpkg/apt arch for Docker repo
+  ansible.builtin.set_fact:
+    docker_ce_apt_arch: >-
+      {{
+        ({
+          'x86_64': 'amd64',
+          'aarch64': 'arm64',
+          'armv7l': 'armhf',
+          'ppc64le': 'ppc64el'
+        }.get(ansible_facts.architecture, 'amd64'))
+      }}
+
+- name: Remove conflicting/unofficial Docker packages (if requested)
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose
+      - docker-doc
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+    purge: true
+    update_cache: true
+  when: docker_ce_remove_conflicts
+
+- name: Install prerequisites for Docker repo
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Install Docker official GPG key (docker.asc)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Add Docker apt repository (deb822 .sources)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.sources
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: https://download.docker.com/linux/debian
+      Suites: {{ ansible_facts.distribution_release }}
+      Components: stable
+      Architectures: {{ docker_ce_apt_arch }}
+      Signed-By: /etc/apt/keyrings/docker.asc
+
+- name: apt update after adding Docker repo
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Docker CE + Compose plugin
+  ansible.builtin.apt:
+    name: "{{ docker_ce_packages }}"
+    state: present
+
+- name: Enable and start docker + containerd
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - docker
+    - containerd
+
+- name: (Optional) Install Python Docker SDK packages
+  ansible.builtin.apt:
+    name: "{{ docker_ce_python_packages }}"
+    state: present
+  when: docker_ce_install_python_sdk
+
+- name: Ensure docker group exists (only if we manage membership)
+  ansible.builtin.group:
+    name: docker
+    state: present
+  when: docker_ce_manage_group
+
+- name: (Optional) Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_ce_users }}"
+  when: docker_ce_manage_group
