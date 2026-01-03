@@ -1,0 +1,49 @@
+---
+- name: Ensure git is installed
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+
+- name: Check docker compose is available on VPS
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+- name: Create project directory
+  ansible.builtin.file:
+    path: "{{ iot_common_dest }}"
+    state: directory
+    owner: "{{ iot_common_owner }}"
+    group: "{{ iot_common_group }}"
+    mode: "0755"
+
+- name: Clone/update iot-common repo on VPS
+  ansible.builtin.git:
+    repo: "{{ iot_common_repo }}"
+    dest: "{{ iot_common_dest }}"
+    version: "{{ iot_common_version }}"
+    update: true
+  become: true
+  become_user: "{{ iot_common_owner }}"
+  register: iot_common_git
+  # git module behavior/параметры: :contentReference[oaicite:5]{index=5}
+
+# Важно: docker_compose_v2 запускаем с become:true (root),
+# чтобы не зависеть от membership в группе docker.
+- name: Bring up compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ iot_common_dest }}"
+    project_name: "{{ iot_common_project_name }}"
+    files: "{{ iot_common_compose_files }}"
+    state: "{{ iot_common_state }}"
+    pull: "{{ iot_common_pull }}"
+    recreate: "{{ iot_common_recreate }}"
+    remove_orphans: "{{ iot_common_remove_orphans }}"
+    wait: "{{ iot_common_wait }}"
+    wait_timeout: "{{ iot_common_wait_timeout }}"
+  become: true
+  register: compose_out
+
+- name: Show compose result (short)
+  ansible.builtin.debug:
+    var: compose_out.changed
