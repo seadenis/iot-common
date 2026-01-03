@@ -1,0 +1,21 @@
+---
+iot_common_repo: "https://github.com/seadenis/iot-stage.git"
+iot_common_version: "main"     # можно tag/commit
+iot_common_dest: "/opt/iot-stage"
+iot_common_owner: "deploy"
+iot_common_group: "deploy"
+
+# compose
+iot_common_compose_files:
+  - "docker-compose.yml"       # у тебя в корне
+iot_common_project_name: "iot-stage"
+
+# pull policy: "missing" безопаснее по лимитам Docker Hub; "always" — всегда тянет образы
+iot_common_pull: "missing"     # always|missing|never|policy :contentReference[oaicite:2]{index=2}
+iot_common_recreate: "auto"    # auto|always|never :contentReference[oaicite:3]{index=3}
+iot_common_remove_orphans: true
+iot_common_state: "present"    # present|stopped|absent|restarted :contentReference[oaicite:4]{index=4}
+
+# ждать healthchecks (если в compose они прописаны)
+iot_common_wait: false
+iot_common_wait_timeout: 180
