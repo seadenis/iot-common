@@ -1,0 +1,125 @@
+- name: Precheck | only Debian is supported here
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == "Debian"
+    fail_msg: "Эта роль рассчитана на Debian."
+
+- name: Precheck | skip if already Debian 13+
+  ansible.builtin.meta: end_host
+  when: (ansible_facts.distribution_major_version | int) >= 13
+
+# На всякий случай: apt-модуль требует python3-apt на целевой системе.
+- name: Ensure python3-apt present (for Ansible apt module)
+  ansible.builtin.raw: >
+    python3 -c "import apt, apt_pkg" >/dev/null 2>&1
+    || (export DEBIAN_FRONTEND=noninteractive
+    && apt-get update
+    && apt-get install -y python3-apt)
+  changed_when: false
+
+- name: Backup /etc/apt
+  ansible.builtin.command:
+    cmd: ["tar", "-czf", "{{ debian_upgrade_backup_path }}", "/etc/apt"]
+    creates: "{{ debian_upgrade_backup_path }}"
+  when: debian_upgrade_backup_apt
+
+# 1) Подтянуть Debian 12 до актуального состояния
+- name: apt update (Debian 12)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: apt upgrade (Debian 12)
+  ansible.builtin.apt:
+    upgrade: safe
+
+- name: apt full-upgrade (Debian 12)
+  ansible.builtin.apt:
+    upgrade: full
+
+# 2) Подготовка sources: найти sources.list, *.list, *.sources
+- name: Stat /etc/apt/sources.list
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list
+  register: _sources_list
+
+- name: Find APT source files in /etc/apt/sources.list.d
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns:
+      - "*.list"
+      - "*.sources"
+    file_type: file
+  register: _sources_listd
+
+- name: Build list of APT source files
+  ansible.builtin.set_fact:
+    _apt_source_files: >-
+      {{
+        (_sources_listd.files | map(attribute='path') | list)
+        + (['/etc/apt/sources.list'] if _sources_list.stat.exists else [])
+      }}
+
+# По release notes лучше убрать backports/proposed-updates до апгрейда
+- name: Comment out bookworm-backports (recommended)
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '^(?!\s*#)(.*\b{{ debian_upgrade_from }}-backports\b.*)$'
+    replace: '# \1'
+    backup: true
+  loop: "{{ _apt_source_files }}"
+  when: debian_upgrade_disable_backports
+
+- name: Comment out proposed-updates (recommended)
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '^(?!\s*#)(.*\bproposed-updates\b.*)$'
+    replace: '# \1'
+    backup: true
+  loop: "{{ _apt_source_files }}"
+  when: debian_upgrade_disable_proposed_updates
+
+- name: Replace suite bookworm -> trixie in APT sources
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '\b{{ debian_upgrade_from }}\b'
+    replace: "{{ debian_upgrade_to }}"
+    backup: true
+  loop: "{{ _apt_source_files }}"
+
+# 3) Upgrade to Debian 13: двухшаговый подход из релиз-нотов:
+# сначала upgrade, потом full-upgrade. :contentReference[oaicite:0]{index=0}
+- name: apt update (Debian 13 repos)
+  ansible.builtin.apt:
+    update_cache: true
+
+# В автоматизации логичнее использовать apt-get-поведение (скрипт-стабильнее, чем apt). :contentReference[oaicite:1]{index=1}
+# apt module в safe-режиме эквивалентен apt-get upgrade (без удаления пакетов).
+- name: apt upgrade (minimal step)
+  ansible.builtin.apt:
+    upgrade: safe
+
+- name: apt full-upgrade (distribution upgrade)
+  ansible.builtin.apt:
+    upgrade: full
+
+- name: Ensure kernel meta-package linux-image-amd64 installed
+  ansible.builtin.apt:
+    name: linux-image-amd64
+    state: present
+
+# 4) Reboot and wait
+- name: Reboot after upgrade
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ debian_upgrade_reboot_timeout }}"
+    test_command: "uname -r"
+  # reboot ждёт пока хост реально вернётся. :contentReference[oaicite:2]{index=2}
+
+- name: Refresh facts after reboot
+  ansible.builtin.setup:
+
+- name: Assert Debian 13 after reboot
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts.distribution_major_version | int) == 13
+    fail_msg: "После апгрейда система не Debian 13: {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}"
