@@ -1,5 +1,15 @@
-- name: Bootstrap common baseline
+- name: Debian upgrade first
   hosts: vps
   become: true
+  gather_facts: true
   roles:
-    - common
+    - role: debian_upgrade
+      tags: [debian_upgrade]
+
+- name: Common hardening after upgrade
+  hosts: vps
+  become: true
+  gather_facts: true
+  roles:
+    - role: common
+      tags: [common]
