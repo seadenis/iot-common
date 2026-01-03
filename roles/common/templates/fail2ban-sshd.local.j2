@@ -1,0 +1,11 @@
+[sshd]
+enabled = true
+backend = systemd
+banaction = nftables[type=multiport]
+
+maxretry  = 3
+findtime  = 10m
+bantime   = 12h
+
+# Чтобы не забанить самого себя (полезно при SSH-ограничении по домашнему IP):
+ignoreip = 127.0.0.1/8 ::1 {{ common_admin_ipv4 | default('') }}
